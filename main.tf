@@ -1,7 +1,7 @@
 provider "google" {
   credentials = "/home/devops/.config/gcloud/application_default_credentials.json"
-  project     = var.project-id
-  region      = var.region-id
+  project     = "${var.project-id}"
+  region      = "${var.region-id}"
 }
 
 resource "google_compute_network" "vpc_network" {
@@ -15,7 +15,7 @@ resource "google_compute_network" "vpc_network" {
 
 resource "google_compute_subnetwork" "public-subnet" {
   name                     = "${var.project-name}-subnet-public"
-  ip_cidr_range            = "10.65.1.0/24"
+  ip_cidr_range            = "${var.public-ip-range}"
   network                  = google_compute_network.vpc_network.id
   description              = "${var.project-name} public subnet"
   purpose                  = "PRIVATE_RFC_1918"
@@ -25,7 +25,7 @@ resource "google_compute_subnetwork" "public-subnet" {
 
 resource "google_compute_subnetwork" "private-subnet" {
   name                     = "${var.project-name}-subnet-private"
-  ip_cidr_range            = "10.65.2.0/24"
+  ip_cidr_range            = "${var.private-ip-range}"
   network                  = google_compute_network.vpc_network.id
   description              = "${var.project-name} private subnet"
   purpose                  = "PRIVATE_RFC_1918"
@@ -35,7 +35,7 @@ resource "google_compute_subnetwork" "private-subnet" {
 
 resource "google_compute_subnetwork" "service-subnet" {
   name                     = "${var.project-name}-subnet-service"
-  ip_cidr_range            = "10.65.3.0/24"
+  ip_cidr_range            = "${var.service-ip-range}"
   network                  = google_compute_network.vpc_network.id
   description              = "${var.project-name} service subnet"
   purpose                  = "PRIVATE_RFC_1918"
@@ -93,7 +93,7 @@ resource "google_compute_firewall" "firewall-default-all" {
   allow {
     protocol                         = "all"
   }
-  source_ranges                    = ["10.65.1.0/24", "10.65.2.0/24", "10.65.3.0/24"]
+  source_ranges                    = ["${var.public-ip-range}", "${var.private-ip-range}", "${var.service-ip-range}"]
 }
 
 resource "google_compute_firewall" "firewall-default-ssh" {
@@ -118,6 +118,15 @@ resource "google_compute_firewall" "firewall-default-rdp" {
     target_tags                      = ["rdp"]
 }
 
+resource "google_compute_address" "bastion-compute-address" {
+  name                               = "${var.project-name}-bastion-ip"
+  address_type                       = "EXTERNAL"
+  description                        = "external ip address to ${var.project-name}-bastion compute instance"
+  network_tier                       = "PREMIUM"
+  ip_version                         = "IPV4"
+  region                             = "${var.region-id}"
+}
+
 variable "project-id" {
   type = string
   description = "GCP project name"
@@ -134,4 +143,22 @@ variable "project-name" {
   type = string
   description = "the prefix name to be added to all variables"
   default = "project"
+}
+
+variable "public-ip-range" {
+  type = string
+  description = "ip range to public subnet"
+  default = "10.65.1.0/24"
+}
+
+variable "private-ip-range" {
+  type = string
+  description = "ip range to private subnet"
+  default = "10.65.2.0/24"
+}
+
+variable "service-ip-range" {
+  type = string
+  description = "ip range to service subnet"
+  default = "10.65.3.0/24"
 }
