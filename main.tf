@@ -127,6 +127,47 @@ resource "google_compute_address" "bastion-compute-address" {
   region                             = "${var.region-id}"
 }
 
+resource "google_compute_instance" "bastion" {
+  name                               = "${var.project-name}-bastion"
+  description                        = "compute instance to ${var.project-name}-bastion"
+  zone                               = "${var.region-id}-b"
+  machine_type                       = "n2-standard-2"
+  allow_stopping_for_update          = true
+  desired_status                     = "RUNNING"
+  deletion_protection                = false
+  tags                               = ["ssh"]
+  
+  network_interface {
+    subnetwork                       = google_compute_subnetwork.public-subnet.name
+    nic_type                         = "GVNIC"
+    stack_type                       = "IPV4_ONLY"
+    access_config {
+      nat_ip                         = google_compute_address.bastion-compute-address.address
+      network_tier                   = "PREMIUM"
+    }
+  }
+  boot_disk {
+    auto_delete                      = true
+    device_name                      = "${var.project-name}-bastion-boot"
+    initialize_params {
+      type                           = "pd-ssd"
+      size                           = 128
+      image                          = "ubuntu-2204-lts"
+    }
+  }
+  metadata = {
+    ssh-keys = "devops: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDD7H05c/eqWptyyhtyg29WacBW24L9faNM2MGlYVnwD68f9KD1OUyYVXpQMMCxvCXcRjcoddzR8CCEUpkpWeT1arzX6sioE6HJCDBKYCY5lMB+6JfOCBNRLwXJHmMGbOEdaDASwW2GKHntUDEQR0KM6/MBc+OXvpIs6mhYnHfCXRns/ubYhpZQQwf3kO+llJjnjfokQ96bzZ/hs7juAni04+1Rs5L7qK/gT3BWNrULHs4oPI1FOCEwHS8K0bKc763sPmYlVGiLus48vmNM/u//QoE732m1zZ7nHngFm28WE89b/HphpxhnpMH4JzQ4zmRnRIgefZhz6i0I1s12QOqD"
+    startup-script = <<-EOF
+timedatectl set-timezone Asia/Singapore
+timedatectl set-ntp true
+apt update
+apt upgrade -y
+apt autoremove --purge -y
+reboot
+EOF
+  }
+}
+
 variable "project-id" {
   type = string
   description = "GCP project name"
